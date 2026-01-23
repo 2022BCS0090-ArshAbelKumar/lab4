@@ -1,0 +1,74 @@
+name: CI-CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+
+    outputs:
+      r2: ${{ steps.extract.outputs.r2 }}
+      mse: ${{ steps.extract.outputs.mse }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Train model
+        run: python scripts/train.py
+
+      - name: Extract metrics
+        id: extract
+        run: |
+          echo "r2=$(jq .r2 outputs/results/results.json)" >> $GITHUB_OUTPUT
+          echo "mse=$(jq .mse outputs/results/results.json)" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: outputs/
+
+  deploy:
+    needs: train
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check improvement
+        run: |
+          if (( $(echo "${{ needs.train.outputs.r2 }} <= ${{ vars.BEST_R2 }}" | bc -l) )); then
+            echo "2022BCS0090 - Model did not improve"
+            exit 0
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts
+          path: outputs/
+
+      - name: Docker login
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wine_predict_2022bcs0090:latest .
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/wine_predict_2022bcs0090:latest
+
+      - name: Update best metrics
+        run: |
+          gh variable set BEST_R2 -b "${{ needs.train.outputs.r2 }}"
+          gh variable set BEST_MSE -b "${{ needs.train.outputs.mse }}"
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
