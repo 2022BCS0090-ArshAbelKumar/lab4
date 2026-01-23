@@ -44,11 +44,11 @@ jobs:
 
     steps:
       - name: Check improvement
-  run: |
-    echo "Current R2: ${{ needs.train.outputs.r2 }}"
-    echo "Best R2 so far: ${{ vars.BEST_R2 }}"
+    run: |
+      echo "Current R2: ${{ needs.train.outputs.r2 }}"
+      echo "Best R2 so far: ${{ vars.BEST_R2 }}"
 
-    python - <<EOF
+      python - <<EOF
 import sys
 
 current = float("${{ needs.train.outputs.r2 }}")
