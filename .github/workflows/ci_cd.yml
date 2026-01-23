@@ -47,18 +47,7 @@ jobs:
           echo "Current R2: ${{ needs.train.outputs.r2 }}"
           echo "Best R2 so far: ${{ vars.BEST_R2 }}"
 
-          python - <<EOF
-import sys
-
-current = float("${{ needs.train.outputs.r2 }}")
-best = float("${{ vars.BEST_R2 }}")
-
-if current <= best:
-    print("Model did not improve. Skipping deployment.")
-    sys.exit(1)
-
-print("Model improved. Proceeding to deployment.")
-EOF
+          python -c "import sys; current=float('${{ needs.train.outputs.r2 }}'); best=float('${{ vars.BEST_R2 }}'); print('Model did not improve. Skipping deployment.') if current<=best else print('Model improved. Proceeding to deployment.'); sys.exit(1) if current<=best else None"
 
       - uses: actions/checkout@v4
 
@@ -69,7 +58,7 @@ EOF
 
       - name: Docker login
         run: |
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+          echo '${{ secrets.DOCKERHUB_TOKEN }}' | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/wine_predict_2022bcs0090:latest .
