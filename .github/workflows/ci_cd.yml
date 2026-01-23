@@ -28,8 +28,9 @@ jobs:
       - name: Extract metrics
         id: extract
         run: |
-          echo "r2=$(jq .r2 outputs/results/results.json)" >> $GITHUB_OUTPUT
-          echo "mse=$(jq .mse outputs/results/results.json)" >> $GITHUB_OUTPUT
+          echo "r2=$(jq -r .r2 outputs/results/results.json)" >> $GITHUB_OUTPUT
+          echo "mse=$(jq -r .mse outputs/results/results.json)" >> $GITHUB_OUTPUT
+
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -43,11 +44,23 @@ jobs:
 
     steps:
       - name: Check improvement
-        run: |
-          if (( $(echo "${{ needs.train.outputs.r2 }} <= ${{ vars.BEST_R2 }}" | bc -l) )); then
-            echo "2022BCS0090 - Model did not improve"
-            exit 0
-          fi
+  run: |
+    echo "Current R2: ${{ needs.train.outputs.r2 }}"
+    echo "Best R2 so far: ${{ vars.BEST_R2 }}"
+
+    python - <<EOF
+import sys
+
+current = float("${{ needs.train.outputs.r2 }}")
+best = float("${{ vars.BEST_R2 }}")
+
+if current <= best:
+    print("Model did not improve. Skipping deployment.")
+    sys.exit(1)
+
+print("Model improved. Proceeding to deployment.")
+EOF
+
 
       - uses: actions/checkout@v4
 
