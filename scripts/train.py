@@ -1,14 +1,18 @@
 import pandas as pd
 import json
-import os
 import joblib
+from pathlib import Path
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error, r2_score
 
-os.makedirs("outputs/model", exist_ok=True)
-os.makedirs("outputs/results", exist_ok=True)
+ARTIFACT_DIR = Path("app/artifacts")
+MODEL_DIR = ARTIFACT_DIR / "model"
+RESULTS_DIR = ARTIFACT_DIR / "results"
+
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 df = pd.read_csv("dataset/winequality-red.csv", sep=";")
 
@@ -19,7 +23,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-model =  ElasticNet(alpha=0.1, l1_ratio=0.5)
+model = ElasticNet(alpha=0.1, l1_ratio=0.5)
 model.fit(X_train, y_train)
 
 y_pred = model.predict(X_test)
@@ -30,7 +34,7 @@ r2 = r2_score(y_test, y_pred)
 print("MSE:", mse)
 print("R2:", r2)
 
-joblib.dump(model, "outputs/model/model.pkl")
+joblib.dump(model, MODEL_DIR / "model.pkl")
 
-with open("outputs/results/results.json", "w") as f:
+with open(RESULTS_DIR / "metrics.json", "w") as f:
     json.dump({"mse": mse, "r2": r2}, f, indent=4)
