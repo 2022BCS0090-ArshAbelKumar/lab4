@@ -39,12 +39,12 @@ pipeline {
             steps {
                 script {
                     env.CURRENT_R2 = sh(
-                        script: "jq '.r2' app/artifacts/metrics.json",
+                        script: "jq '.r2' app/artifacts/results/metrics.json",
                         returnStdout: true
                     ).trim()
 
                     env.CURRENT_MSE = sh(
-                        script: "jq '.mse' app/artifacts/metrics.json",
+                        script: "jq '.mse' app/artifacts/results/metrics.json",
                         returnStdout: true
                     ).trim()
                 }
