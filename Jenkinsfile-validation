@@ -19,7 +19,7 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f $CONTAINER_NAME || true
-                docker run -d -p $PORT:8000 --name $CONTAINER_NAME $IMAGE_NAME
+                docker run -d --name $CONTAINER_NAME $IMAGE_NAME
                 '''
             }
         }
@@ -30,7 +30,7 @@ pipeline {
                     timeout(time: 60, unit: 'SECONDS') {
                         waitUntil {
                             def status = sh(
-                                script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:$PORT/health || true",
+                                script: "docker exec $CONTAINER_NAME curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/health || true",
                                 returnStdout: true
                             ).trim()
                             return (status == "200")
