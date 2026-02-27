@@ -5,6 +5,10 @@ import numpy as np
 
 app = FastAPI()
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+    
 model = joblib.load("outputs/model/model.pkl")
 
 class WineInput(BaseModel):
