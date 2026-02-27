@@ -1,0 +1,91 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "2022bcs0090arshabelkumar/wine_predict_2022bcs0090:latest"
+        CONTAINER_NAME = "wine_validation_test"
+        PORT = "8000"
+    }
+
+    stages {
+
+        stage('Pull Image') {
+            steps {
+                sh 'docker pull $IMAGE_NAME'
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh '''
+                docker run -d -p $PORT:8000 --name $CONTAINER_NAME $IMAGE_NAME
+                '''
+            }
+        }
+
+        stage('Wait for Service Readiness') {
+            steps {
+                script {
+                    timeout(time: 60, unit: 'SECONDS') {
+                        waitUntil {
+                            def status = sh(
+                                script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:$PORT/health || true",
+                                returnStdout: true
+                            ).trim()
+                            return (status == "200")
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Send Valid Inference Request') {
+            steps {
+                script {
+                    def response = sh(
+                        script: "curl -s -X POST http://localhost:$PORT/predict -H 'Content-Type: application/json' -d @tests/valid.json",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Valid Response: ${response}"
+
+                    if (!response.contains("prediction")) {
+                        error("Prediction field missing!")
+                    }
+                }
+            }
+        }
+
+        stage('Send Invalid Request') {
+            steps {
+                script {
+                    def status = sh(
+                        script: "curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:$PORT/predict -H 'Content-Type: application/json' -d @tests/invalid.json || true",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Invalid request status: ${status}"
+
+                    if (status == "200") {
+                        error("Invalid input was accepted! Test failed.")
+                    }
+                }
+            }
+        }
+
+        stage('Stop Container') {
+            steps {
+                sh '''
+                docker stop $CONTAINER_NAME || true
+                docker rm $CONTAINER_NAME || true
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker rm -f $CONTAINER_NAME || true'
+        }
+    }
+}
